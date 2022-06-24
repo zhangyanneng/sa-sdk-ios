@@ -858,6 +858,15 @@ NSString * const SensorsAnalyticsIdentityKeyEmail = @"$identity_email";
     });
 }
 
+// 拦截上传请求的body参数
+- (void)customBodyCallBack:(id(^)(NSArray *eventRecords))callback; {
+    if (!callback) {
+        return;
+    }
+    
+    [self.eventTracker callBackCustomBody:callback];
+}
+
 - (void)registerPropertyPlugin:(id<SAPropertyPluginProtocol>)plugin {
     dispatch_async(self.serialQueue, ^{
         [SAPropertyPluginManager.sharedInstance registerPropertyPlugin:plugin];

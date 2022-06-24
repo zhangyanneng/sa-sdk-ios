@@ -32,7 +32,61 @@
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor whiteColor];
     self.tableView.sensorsAnalyticsDelegate = self;
+    
+    // 请求参数拦截
+    [[SensorsAnalyticsSDK sharedInstance] customBodyCallBack:^id _Nonnull(NSArray * _Nonnull eventRecords) {
+        NSArray *json = [self buildJSONData:eventRecords];
+        return @{@"list":json};
+    }];
 }
+
+
+//转化数据结构
+//
+- (NSArray *)buildJSONData:(NSArray *)array {
+    NSMutableArray *arrM = [NSMutableArray array];
+    [array enumerateObjectsUsingBlock:^(NSDictionary *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        
+        NSString *type = [obj objectForKey:@"event"];
+        NSDictionary *properties = [obj objectForKey:@"properties"];
+        
+        NSMutableDictionary *dictM = [NSMutableDictionary dictionary];
+        dictM[@"topic"] = @"app";
+        dictM[@"time"] =  [obj objectForKey:@"time"] ? [obj objectForKey:@"time"] : @(0);
+        dictM[@"type"] = type ? [self deleteSpecial:type] : @"";
+        dictM[@"resume_from_background"] = @(NO);
+        dictM[@"anonymous_id"] = [obj objectForKey:@"anonymous_id"] ? [obj objectForKey:@"anonymous_id"] : @"";
+        dictM[@"distinct_id"] = [obj objectForKey:@"distinct_id"] ? [obj objectForKey:@"distinct_id"] : @"";
+        dictM[@"login_id"] = [obj objectForKey:@"login_id"] ? [obj objectForKey:@"login_id"] : @"";
+        dictM[@"properties"] = @{
+            @"app_id":[properties objectForKey:@"$app_id"] ? [properties objectForKey:@"$app_id"] : @"",
+            @"app_name": [properties objectForKey:@"$app_name"] ? [properties objectForKey:@"$app_name"] : @"",
+            @"app_version": [properties objectForKey:@"$app_version"] ? [properties objectForKey:@"$app_version"] : @"",
+            @"is_first_day": [properties objectForKey:@"$is_first_day"] ? [properties objectForKey:@"$is_first_day"] : @(NO),
+            @"is_login_id": [properties objectForKey:@"is_login_id"] ? [properties objectForKey:@"is_login_id"] : @(NO),
+            @"manufacturer": [properties objectForKey:@"$manufacturer"] ? [properties objectForKey:@"$manufacturer"] : @"",
+            @"model":[properties objectForKey:@"$model"] ? [properties objectForKey:@"$model"] : @"",
+            @"network_type": [properties objectForKey:@"$network_type"] ? [properties objectForKey:@"$network_type"] : @"",
+            @"os": [properties objectForKey:@"$os"] ? [properties objectForKey:@"$os"] : @"",
+            @"os_version": [properties objectForKey:@"$os_version"] ? [properties objectForKey:@"$os_version"] : @"",
+            @"scene":[properties objectForKey:@"$screen_name"] ? [properties objectForKey:@"$screen_name"] : @"",
+            @"screen_height": [properties objectForKey:@"$screen_height"] ? [properties objectForKey:@"$screen_height"] : @"",
+            @"screen_width": [properties objectForKey:@"$screen_width"] ? [properties objectForKey:@"$screen_width"] : @0,
+            @"ip":[properties objectForKey:@"ip"] ? [properties objectForKey:@"ip"] : @"",
+        };
+        
+        
+        [arrM addObject:dictM];
+    }];
+    
+    return arrM.copy;
+}
+
+// 去除$符号
+- (NSString *)deleteSpecial:(NSString *)special {
+    return [special stringByReplacingOccurrencesOfString:@"$" withString:@""];
+}
+
 
 - (NSDictionary *)getTrackProperties {
     return @{@"shuxing" : @"Gaga"};

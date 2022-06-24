@@ -187,4 +187,8 @@ static NSInteger kSAFlushMaxRepeatCount = 100;
     }];
 }
 
+- (void)callBackCustomBody:(id(^)(NSArray *eventRecords))callback {
+    [self.eventFlush callBackCustomBody:callback];
+}
+
 @end

@@ -35,6 +35,8 @@
 
 @property (nonatomic, strong) dispatch_semaphore_t flushSemaphore;
 
+@property(nonatomic, copy) id(^callbackCustomBodyBlock)(NSArray *eventRecords);
+
 @end
 
 @implementation SAEventFlush
@@ -83,20 +85,26 @@
 
 // 2. 完成 HTTP 请求拼接
 - (NSData *)buildBodyWithJSONString:(NSString *)jsonString isEncrypted:(BOOL)isEncrypted {
-    int gzip = 1; // gzip = 9 表示加密编码
-    if (isEncrypted) {
-        // 加密数据已{经做过 gzip 压缩和 base64 处理了，就不需要再处理。
-        gzip = 9;
+    if (self.callbackCustomBodyBlock) {
+        NSArray *array = [SAJSONUtil JSONObjectWithString:jsonString];
+        NSDictionary *jsonBody = self.callbackCustomBodyBlock(array);
+        return [[SAJSONUtil stringWithJSONObject:jsonBody] dataUsingEncoding:NSUTF8StringEncoding];
     } else {
-        // 使用gzip进行压缩
-        NSData *zippedData = [SAGzipUtility gzipData:[jsonString dataUsingEncoding:NSUTF8StringEncoding]];
-        // base64
-        jsonString = [zippedData base64EncodedStringWithOptions:NSDataBase64EncodingEndLineWithCarriageReturn];
+        int gzip = 1; // gzip = 9 表示加密编码
+        if (isEncrypted) {
+            // 加密数据已{经做过 gzip 压缩和 base64 处理了，就不需要再处理。
+            gzip = 9;
+        } else {
+            // 使用gzip进行压缩
+            NSData *zippedData = [SAGzipUtility gzipData:[jsonString dataUsingEncoding:NSUTF8StringEncoding]];
+            // base64
+            jsonString = [zippedData base64EncodedStringWithOptions:NSDataBase64EncodingEndLineWithCarriageReturn];
+        }
+        int hashCode = [jsonString sensorsdata_hashCode];
+        jsonString = [jsonString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet alphanumericCharacterSet]];
+        NSString *bodyString = [NSString stringWithFormat:@"crc=%d&gzip=%d&data_list=%@", hashCode, gzip, jsonString];
+        return [bodyString dataUsingEncoding:NSUTF8StringEncoding];
     }
-    int hashCode = [jsonString sensorsdata_hashCode];
-    jsonString = [jsonString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet alphanumericCharacterSet]];
-    NSString *bodyString = [NSString stringWithFormat:@"crc=%d&gzip=%d&data_list=%@", hashCode, gzip, jsonString];
-    return [bodyString dataUsingEncoding:NSUTF8StringEncoding];
 }
 
 - (NSURLRequest *)buildFlushRequestWithServerURL:(NSURL *)serverURL HTTPBody:(NSData *)HTTPBody {
@@ -182,6 +190,10 @@
         dispatch_semaphore_wait(self.flushSemaphore, DISPATCH_TIME_FOREVER);
         completion(flushSuccess);
     }
+}
+
+- (void)callBackCustomBody:(id(^)(NSArray *eventRecords))callback {
+    self.callbackCustomBodyBlock = callback;
 }
 
 @end

@@ -30,6 +30,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface SAEventFlush : NSObject
 
+- (void)callBackCustomBody:(id(^)(NSArray *eventRecords))callback;
+
 - (void)flushEventRecords:(NSArray<SAEventRecord *> *)records completion:(void (^)(BOOL success))completion;
 
 @end
