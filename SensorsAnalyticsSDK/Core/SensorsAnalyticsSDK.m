@@ -867,6 +867,15 @@ NSString * const SensorsAnalyticsIdentityKeyEmail = @"$identity_email";
     [self.eventTracker callBackCustomBody:callback];
 }
 
+// hook 数据上报请求
+- (void)hookHttpCallBack:(void(^)(NSArray *eventRecords))callback {
+    if (!callback) {
+        return;
+    }
+    [self.eventTracker callBackHttpRequest:callback];
+}
+
+
 - (void)registerPropertyPlugin:(id<SAPropertyPluginProtocol>)plugin {
     dispatch_async(self.serialQueue, ^{
         [SAPropertyPluginManager.sharedInstance registerPropertyPlugin:plugin];

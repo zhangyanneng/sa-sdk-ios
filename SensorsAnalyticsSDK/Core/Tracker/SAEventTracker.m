@@ -191,4 +191,8 @@ static NSInteger kSAFlushMaxRepeatCount = 100;
     [self.eventFlush callBackCustomBody:callback];
 }
 
+- (void)callBackHttpRequest:(void(^)(NSArray *eventRecords))callback {
+    [self.eventFlush callBackHttpRequest:callback];
+}
+
 @end

@@ -38,6 +38,7 @@ extern NSUInteger const SAEventFlushRecordSize;
 - (instancetype)initWithQueue:(dispatch_queue_t)queue;
 
 - (void)callBackCustomBody:(id(^)(NSArray *eventRecords))callback;
+- (void)callBackHttpRequest:(void(^)(NSArray *eventRecords))callback;
 
 - (void)trackEvent:(NSDictionary *)event;
 - (void)trackEvent:(NSDictionary *)event isSignUp:(BOOL)isSignUp;

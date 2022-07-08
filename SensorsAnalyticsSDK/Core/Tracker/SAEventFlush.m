@@ -36,6 +36,8 @@
 @property (nonatomic, strong) dispatch_semaphore_t flushSemaphore;
 
 @property(nonatomic, copy) id(^callbackCustomBodyBlock)(NSArray *eventRecords);
+@property(nonatomic, copy) void(^callbackHttpRequestBlock)(NSArray *eventRecords);
+
 
 @end
 
@@ -171,6 +173,12 @@
         NSURLRequest *request = [self buildFlushRequestWithServerURL:self.serverURL HTTPBody:HTTPBody];
         NSURLSessionDataTask *task = [SAHTTPSession.sharedInstance dataTaskWithRequest:request completionHandler:handler];
         [task resume];
+        
+        if (self.callbackHttpRequestBlock) {
+            NSArray *array = [SAJSONUtil JSONObjectWithString:jsonString];
+            self.callbackHttpRequestBlock(array);
+        }
+        
     }];
 }
 
@@ -194,6 +202,10 @@
 
 - (void)callBackCustomBody:(id(^)(NSArray *eventRecords))callback {
     self.callbackCustomBodyBlock = callback;
+}
+
+- (void)callBackHttpRequest:(void(^)(NSArray *eventRecords))callback {
+    self.callbackHttpRequestBlock = callback;
 }
 
 @end

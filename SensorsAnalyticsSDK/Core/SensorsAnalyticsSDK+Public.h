@@ -363,6 +363,8 @@ extern NSString * const SensorsAnalyticsIdentityKeyEmail;
 
 // 拦截上传请求的body参数
 - (void)customBodyCallBack:(id(^)(NSArray *eventRecords))callback;
+// hook 数据上报请求
+- (void)hookHttpCallBack:(void(^)(NSArray *eventRecords))callback;
 
 /**
  * @abstract
