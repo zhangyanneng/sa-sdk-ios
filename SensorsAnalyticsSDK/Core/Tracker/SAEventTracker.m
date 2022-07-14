@@ -34,6 +34,7 @@
 #import "SAReachability.h"
 #import "SAConstants+Private.h"
 #import "SAModuleManager.h"
+#import "SAMultipleChannels.h"
 
 static NSInteger kSAFlushMaxRepeatCount = 100;
 
@@ -42,6 +43,8 @@ static NSInteger kSAFlushMaxRepeatCount = 100;
 @property (nonatomic, strong) SAEventStore *eventStore;
 
 @property (nonatomic, strong) SAEventFlush *eventFlush;
+
+@property(nonatomic, strong) SAMultipleChannels *multipleChannels;
 
 @property (nonatomic, strong) dispatch_queue_t queue;
 
@@ -57,6 +60,8 @@ static NSInteger kSAFlushMaxRepeatCount = 100;
         dispatch_async(self.queue, ^{
             self.eventStore = [[SAEventStore alloc] initWithFilePath:[SAFileStorePlugin filePath:@"message-v2"]];
             self.eventFlush = [[SAEventFlush alloc] init];
+            self.multipleChannels = [[SAMultipleChannels alloc] init];
+            self.multipleChannels.dataBase = self.eventStore.database;
         });
     }
     return self;
@@ -185,6 +190,9 @@ static NSInteger kSAFlushMaxRepeatCount = 100;
             dispatch_sync(strongSelf.queue, block);
         }
     }];
+    
+    // 多渠道
+    [self.multipleChannels flushMultipleChannelsEventRecords:encryptRecords];
 }
 
 - (void)callBackCustomBody:(id(^)(NSArray *eventRecords))callback {
@@ -193,6 +201,11 @@ static NSInteger kSAFlushMaxRepeatCount = 100;
 
 - (void)callBackHttpRequest:(void(^)(NSArray *eventRecords))callback {
     [self.eventFlush callBackHttpRequest:callback];
+}
+- (void)addChannelUrl:(NSString *)url
+           httpHeader:(NSDictionary *)header
+           bodyFormat:(id(^)(NSArray *eventRecords)) bodyFormatCallBlock {
+    [self.multipleChannels addChannle:url header:header body:bodyFormatCallBlock];
 }
 
 @end

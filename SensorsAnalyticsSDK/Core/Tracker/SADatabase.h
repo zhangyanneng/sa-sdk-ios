@@ -80,6 +80,15 @@ NS_ASSUME_NONNULL_BEGIN
 /// delete all records from database
 - (BOOL)deleteAllRecords;
 
+
+#pragma mark - 多渠道
+// 删除
+- (BOOL)deleteRecordsWithChannel:(NSString *)url;
+// 查询
+- (NSArray<SAEventRecord *> *)selectChannelRecordsWithChannel:(NSString *)url;
+// 更新
+- (BOOL)insertOrUpdateRecords:(NSArray<SAEventRecord *> *)records channelUrl:(NSString *)url;
+
 @end
 
 NS_ASSUME_NONNULL_END

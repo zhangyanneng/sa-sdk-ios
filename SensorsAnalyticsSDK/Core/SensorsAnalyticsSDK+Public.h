@@ -360,12 +360,6 @@ extern NSString * const SensorsAnalyticsIdentityKeyEmail;
  * @param callback 传入事件名称和事件属性，可以修改或删除事件属性。请返回一个 BOOL 值，true 表示事件将入库， false 表示事件将被抛弃
  */
 - (void)trackEventCallback:(BOOL (^)(NSString *eventName, NSMutableDictionary<NSString *, id> *properties))callback;
-
-// 拦截上传请求的body参数
-- (void)customBodyCallBack:(id(^)(NSArray *eventRecords))callback;
-// hook 数据上报请求
-- (void)hookHttpCallBack:(void(^)(NSArray *eventRecords))callback;
-
 /**
  * @abstract
  * 用来设置每个事件都带有的一些公共属性
@@ -636,6 +630,28 @@ extern NSString * const SensorsAnalyticsIdentityKeyEmail;
 - (void)clearKeychainData API_UNAVAILABLE(macos);
 
 @end
+
+
+@interface SensorsAnalyticsSDK (POP)
+
+// 拦截上传请求的body参数
+- (void)customBodyCallBack:(id(^)(NSArray *eventRecords))callback;
+// hook 数据上报请求
+- (void)hookHttpCallBack:(void(^)(NSArray *eventRecords))callback;
+
+
+/// 添加渠道
+/// @param url  渠道url
+/// @param header 渠道的header配置
+/// @param bodyFormatCallBlock 渠道的上传数据结构修改
+- (void)addChannelUrl:(NSString *)url
+           httpHeader:(NSDictionary *)header
+            bodyFormat:(id (^)(NSArray *eventRecords)) bodyFormatCallBlock;
+
+
+@end
+
+
 
 #pragma mark - Deprecated
 @interface SensorsAnalyticsSDK (Deprecated)

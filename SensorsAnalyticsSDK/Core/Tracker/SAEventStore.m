@@ -31,7 +31,7 @@ static NSString * const SAEventStoreObserverKeyPath = @"isCreatedTable";
 
 @interface SAEventStore ()
 
-@property (nonatomic, strong) SADatabase *database;
+@property (nonatomic, strong,readwrite) SADatabase *database;
 
 /// store data in memory
 @property (nonatomic, strong) NSMutableArray<SAEventRecord *> *recordCaches;

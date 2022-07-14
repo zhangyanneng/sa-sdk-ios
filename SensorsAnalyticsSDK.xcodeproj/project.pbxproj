@@ -380,6 +380,8 @@
 		FCC02F2A26CE4EF700DB8F54 /* SAUserAgent.h in Headers */ = {isa = PBXBuildFile; fileRef = FCC02F2826CE4EF700DB8F54 /* SAUserAgent.h */; };
 		FCC02F2B26CE4EF700DB8F54 /* SAUserAgent.m in Sources */ = {isa = PBXBuildFile; fileRef = FCC02F2926CE4EF700DB8F54 /* SAUserAgent.m */; };
 		FCE7F19D263012660018EB14 /* SAEncryptTests.m in Sources */ = {isa = PBXBuildFile; fileRef = FCE7F19C263012660018EB14 /* SAEncryptTests.m */; };
+		FD5C9A2028800149008328CF /* SAMultipleChannels.h in Headers */ = {isa = PBXBuildFile; fileRef = FD5C9A1E28800149008328CF /* SAMultipleChannels.h */; };
+		FD5C9A2128800149008328CF /* SAMultipleChannels.m in Sources */ = {isa = PBXBuildFile; fileRef = FD5C9A1F28800149008328CF /* SAMultipleChannels.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -793,6 +795,8 @@
 		FCC02F2826CE4EF700DB8F54 /* SAUserAgent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SAUserAgent.h; sourceTree = "<group>"; };
 		FCC02F2926CE4EF700DB8F54 /* SAUserAgent.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SAUserAgent.m; sourceTree = "<group>"; };
 		FCE7F19C263012660018EB14 /* SAEncryptTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SAEncryptTests.m; sourceTree = "<group>"; };
+		FD5C9A1E28800149008328CF /* SAMultipleChannels.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SAMultipleChannels.h; sourceTree = "<group>"; };
+		FD5C9A1F28800149008328CF /* SAMultipleChannels.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SAMultipleChannels.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1152,6 +1156,8 @@
 				4D2D53942591EB2000805141 /* SAEventStore.m */,
 				4D2D53952591EB2000805141 /* SAEventTracker.h */,
 				4D2D53912591EB2000805141 /* SAEventTracker.m */,
+				FD5C9A1E28800149008328CF /* SAMultipleChannels.h */,
+				FD5C9A1F28800149008328CF /* SAMultipleChannels.m */,
 			);
 			path = Tracker;
 			sourceTree = "<group>";
@@ -1706,6 +1712,7 @@
 				F277F5C025CF9A43009B5CE6 /* SAUNUserNotificationCenterDelegateProxy.h in Headers */,
 				A8356DC32656459A00FD64AA /* SAAutoTrackProperty.h in Headers */,
 				FC332DE727672606009122FC /* SADeepLinkProcessor.h in Headers */,
+				FD5C9A2028800149008328CF /* SAMultipleChannels.h in Headers */,
 				4D2D53C22591EB3A00805141 /* SAReadWriteLock.h in Headers */,
 				F2E4ABA126ECAA8600BA7F01 /* SensorsAnalyticsSDK+DeviceOrientation.h in Headers */,
 				A8356DBD2656459A00FD64AA /* SAAutoTrackUtils.h in Headers */,
@@ -2046,6 +2053,7 @@
 				A8356DC42656459A00FD64AA /* UIApplication+SAAutoTrack.m in Sources */,
 				FCBECE0027DEDF7F00361D6C /* SADeferredDeepLinkProcessor.m in Sources */,
 				A8356DC42656459A00FD64AA /* UIApplication+SAAutoTrack.m in Sources */,
+				FD5C9A2128800149008328CF /* SAMultipleChannels.m in Sources */,
 				F23CA0072701715E002EEACA /* SAJavaScriptBridgeManager.m in Sources */,
 				F2066972271FFEE10002ABDF /* UIViewController+SAPageLeave.m in Sources */,
 				A8356DD22656459A00FD64AA /* SAGestureTargetActionModel.m in Sources */,

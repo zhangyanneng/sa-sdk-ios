@@ -38,6 +38,18 @@
         NSArray *json = [self buildJSONData:eventRecords];
         return @{@"list":json};
     }];
+    
+    // 添加渠道
+    [[SensorsAnalyticsSDK sharedInstance]
+     addChannelUrl:@"http://beta-global.popmazxrt.com/track/v1/track/track-events/1/track-full"
+                                             httpHeader:
+         @{
+            @"Content-Type":@"application/json;charset=UTF-8"
+        }
+     bodyFormat:^id _Nonnull(NSArray * _Nonnull eventRecords) {
+        NSArray *json = [self buildJSONData:eventRecords];
+        return @{@"list":json};
+    }];
 }
 
 

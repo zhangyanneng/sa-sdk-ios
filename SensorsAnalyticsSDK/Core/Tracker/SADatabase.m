@@ -27,6 +27,7 @@
 #import "SALog.h"
 #import "SAConstants+Private.h"
 #import "SAObject+SAConfigOptions.h"
+#import "SAJSONUtil.h"
 
 static NSString *const kDatabaseTableName = @"dataCache";
 static NSString *const kDatabaseColumnStatus = @"status";
@@ -39,6 +40,7 @@ static const NSUInteger kRemoveFirstRecordsDefaultCount = 100; // 超过最大�
 @property (nonatomic, copy) NSString *filePath;
 @property (nonatomic, assign) BOOL isOpen;
 @property (nonatomic, assign) BOOL isCreatedTable;
+@property (nonatomic, assign) BOOL isCreatedChanneTable;
 @property (nonatomic, assign) NSUInteger count;
 
 @end
@@ -56,6 +58,7 @@ static const NSUInteger kRemoveFirstRecordsDefaultCount = 100; // 超过最大�
         [self createStmtCache];
         [self open];
         [self createTable];
+        [self createChannelTable];
     }
     return self;
 }
@@ -447,6 +450,135 @@ static const NSUInteger kRemoveFirstRecordsDefaultCount = 100; // 超过最大�
 
 - (void)dealloc {
     [self close];
+}
+
+#pragma mark - 缓存多渠道失败数据
+- (BOOL)createChannelTable {
+    if (!self.isOpen) {
+        return NO;
+    }
+    if (self.isCreatedChanneTable) {
+        return YES;
+    }
+    NSString *sql = @"create table if not exists channelCache (id INTEGER PRIMARY KEY AUTOINCREMENT, channelUrl TEXT, content TEXT)";
+    if (sqlite3_exec(_database, sql.UTF8String, NULL, NULL, NULL) != SQLITE_OK) {
+        SALogError(@"Create channelCache table fail.");
+        self.isCreatedChanneTable = NO;
+        return NO;
+    }
+    self.isCreatedChanneTable = YES;
+    return YES;
+}
+
+- (NSArray<SAEventRecord *> *)selectChannelRecordsWithChannel:(NSString *)url {
+    NSMutableArray *contentArray = [[NSMutableArray alloc] init];
+    if (!self.isOpen) {
+        return contentArray.copy;
+    }
+    if (![self createChannelTable]) {
+        return contentArray.copy;
+    }
+   
+    NSString *query = [NSString stringWithFormat:@"SELECT content FROM channelCache WHERE channelUrl = '%@'", url];
+    sqlite3_stmt *stmt = [self dbCacheStmt:query];
+    if (!stmt) {
+        SALogError(@"Failed to prepare statement, error:%s", sqlite3_errmsg(_database));
+        return [contentArray copy];
+    }
+    
+    // 只会有一条数据
+    NSString *content;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        char *jsonChar = (char *)sqlite3_column_text(stmt, 0);
+        if (!jsonChar) {
+            SALogError(@"Failed to query column_text, error:%s", sqlite3_errmsg(_database));
+            continue;
+        }
+        content = [NSString stringWithUTF8String:jsonChar];
+    }
+    
+    // 转化成JSON对象
+    NSArray *contents = [SAJSONUtil JSONObjectWithString:content];
+    [contents enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        SAEventRecord *event = [[SAEventRecord alloc] initWithEvent:obj type:@"POST"];
+        [contentArray addObject:event];
+    }];
+    
+    return [contentArray copy];
+}
+
+
+- (BOOL)insertOrUpdateRecords:(NSArray<SAEventRecord *> *)records channelUrl:(NSString *)url {
+    if ([self selectChannelRecordsWithChannel:url].count) {
+        return [self updateChannelRecords:records channelUrl:url];
+    } else {
+        return [self insertChannelWithUrl:url records:records];
+    }
+}
+
+
+// 插入或更新数据
+- (BOOL)insertChannelWithUrl:(NSString *)url records:(NSArray<SAEventRecord *> *)records {
+    if (!self.isOpen) {
+        return NO;
+    }
+    if (![self createChannelTable]) {
+        return NO;
+    }
+    
+    // 检查是否更新数据
+    NSString *content = [self buildFlushJSONStringWithEventRecords:records];
+    
+    NSString *query = @"INSERT INTO channelCache(channelUrl, content) values(?, ?)";
+    sqlite3_stmt *insertStatement = [self dbCacheStmt:query];
+    int rc;
+    if (insertStatement) {
+        sqlite3_bind_text(insertStatement, 1, [url UTF8String], -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(insertStatement, 2, [content UTF8String], -1, SQLITE_TRANSIENT);
+        rc = sqlite3_step(insertStatement);
+        if (rc != SQLITE_DONE) {
+            SALogError(@"insert into dataCache table of sqlite fail, rc is %d", rc);
+            return NO;
+        }
+        SALogDebug(@"insert into dataCache table of sqlite success, current count is %lu", self.count);
+        return YES;
+    } else {
+        SALogError(@"insert into dataCache table of sqlite error");
+        return NO;
+    }
+}
+
+- (BOOL)updateChannelRecords:(NSArray<SAEventRecord *> *)records channelUrl:(NSString *)url {
+    NSString *content = [self buildFlushJSONStringWithEventRecords:records];
+    NSString *sql = [NSString stringWithFormat:@"UPDATE channelCache SET content = %@ WHERE channelUrl = %@;", content, url];
+    return [self execUpdateSQL:sql];
+}
+
+- (BOOL)deleteRecordsWithChannel:(NSString *)url {
+   
+    if (![self createChannelTable]) {
+        return NO;
+    }
+    NSString *sql = [NSString stringWithFormat:@"DELETE FROM channelCache WHERE channelUrl = '%@';",url];
+    if (sqlite3_exec(_database, sql.UTF8String, NULL, NULL, NULL) != SQLITE_OK) {
+        SALogError(@"Failed to delete all records");
+        return NO;
+    } else {
+        SALogDebug(@"Delete channle records successfully");
+    }
+    return YES;
+}
+
+
+- (NSString *)buildFlushJSONStringWithEventRecords:(NSArray<SAEventRecord *> *)records {
+    NSMutableArray *contents = [NSMutableArray arrayWithCapacity:records.count];
+    for (SAEventRecord *record in records) {
+        NSString *flushContent = [record flushContent];
+        if (flushContent) {
+            [contents addObject:flushContent];
+        }
+    }
+    return [NSString stringWithFormat:@"[%@]", [contents componentsJoinedByString:@","]];
 }
 
 @end

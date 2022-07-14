@@ -858,24 +858,6 @@ NSString * const SensorsAnalyticsIdentityKeyEmail = @"$identity_email";
     });
 }
 
-// 拦截上传请求的body参数
-- (void)customBodyCallBack:(id(^)(NSArray *eventRecords))callback; {
-    if (!callback) {
-        return;
-    }
-    
-    [self.eventTracker callBackCustomBody:callback];
-}
-
-// hook 数据上报请求
-- (void)hookHttpCallBack:(void(^)(NSArray *eventRecords))callback {
-    if (!callback) {
-        return;
-    }
-    [self.eventTracker callBackHttpRequest:callback];
-}
-
-
 - (void)registerPropertyPlugin:(id<SAPropertyPluginProtocol>)plugin {
     dispatch_async(self.serialQueue, ^{
         [SAPropertyPluginManager.sharedInstance registerPropertyPlugin:plugin];
@@ -1407,5 +1389,35 @@ NSString * const SensorsAnalyticsIdentityKeyEmail = @"$identity_email";
         [self.trackTimer trackTimerStart:event timeUnit:timeUnit currentSysUpTime:currentSysUpTime];
     });
 }
+
+#pragma mark - 数据拦截和分发
+// 拦截上传请求的body参数
+- (void)customBodyCallBack:(id(^)(NSArray *eventRecords))callback; {
+    if (!callback) {
+        return;
+    }
+    
+    [self.eventTracker callBackCustomBody:callback];
+}
+
+// hook 数据上报请求
+- (void)hookHttpCallBack:(void(^)(NSArray *eventRecords))callback {
+    if (!callback) {
+        return;
+    }
+    [self.eventTracker callBackHttpRequest:callback];
+}
+
+/// 添加渠道
+/// @param url  渠道url
+/// @param header 渠道的header配置
+/// @param bodyFormatCallBlock 渠道的上传数据结构修改
+- (void)addChannelUrl:(NSString *)url
+           httpHeader:(NSDictionary *)header
+           bodyFormat:(id (^)(NSArray *eventRecords)) bodyFormatCallBlock {
+    [self.eventTracker addChannelUrl:url httpHeader:header bodyFormat:bodyFormatCallBlock];
+}
+
+
 
 @end

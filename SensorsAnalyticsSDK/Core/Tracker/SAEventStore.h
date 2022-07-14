@@ -27,6 +27,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@class SADatabase;
 @interface SAEventStore : NSObject
 
 //serial queue for database read and write
@@ -34,6 +35,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// All event record count
 @property (nonatomic, readonly) NSUInteger count;
+
+
+@property (nonatomic, strong, readonly) SADatabase *database;
 
 /**
  *  @abstract

@@ -1,8 +1,8 @@
 //
-// SAEventTracker.h
+// SAMultipleChannels.h
 // SensorsAnalyticsSDK
 //
-// Created by 张敏超🍎 on 2020/6/18.
+// Created by 张艳能 on 2022/7/14.
 // Copyright © 2015-2022 Sensors Data Co., Ltd. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,30 +25,20 @@
 #import <Foundation/Foundation.h>
 #import "SAEventRecord.h"
 #import "SAHTTPSession.h"
-#import "SAEventStore.h"
+#import "SADatabase.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-extern NSUInteger const SAEventFlushRecordSize;
+@interface SAMultipleChannels : NSObject
 
-@interface SAEventTracker : NSObject
-
-@property (nonatomic, strong, readonly) SAEventStore *eventStore;
-
-- (instancetype)initWithQueue:(dispatch_queue_t)queue;
-
-- (void)callBackCustomBody:(id(^)(NSArray *eventRecords))callback;
-- (void)callBackHttpRequest:(void(^)(NSArray *eventRecords))callback;
-- (void)addChannelUrl:(NSString *)url
-           httpHeader:(NSDictionary *)header
-            bodyFormat:(id (^)(NSArray *eventRecords)) bodyFormatCallBlock;
+@property(nonatomic, strong) SADatabase *dataBase;
 
 
-- (void)trackEvent:(NSDictionary *)event;
-- (void)trackEvent:(NSDictionary *)event isSignUp:(BOOL)isSignUp;
+- (void)addChannle:(NSString *)url header:(NSDictionary *)header body:(id (^)(NSArray *records))bodyCallback;
 
-- (void)flushAllEventRecords;
-- (void)flushAllEventRecordsWithCompletion:(void(^ _Nullable)(void))completion;
+
+- (void)flushMultipleChannelsEventRecords:(NSArray<SAEventRecord *> *)records;
+
 
 @end
 

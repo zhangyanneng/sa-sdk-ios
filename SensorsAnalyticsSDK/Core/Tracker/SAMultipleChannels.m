@@ -1,8 +1,8 @@
 //
-// SAEventFlush.m
+// SAMultipleChannels.m
 // SensorsAnalyticsSDK
 //
-// Created by 张敏超🍎 on 2020/6/18.
+// Created by 张艳能 on 2022/7/14.
 // Copyright © 2015-2022 Sensors Data Co., Ltd. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@
 #error This file must be compiled with ARC. Either turn on ARC for the project or use -fobjc-arc flag on this file.
 #endif
 
-#import "SAEventFlush.h"
+#import "SAMultipleChannels.h"
 #import "NSString+SAHashCode.h"
 #import "SAGzipUtility.h"
 #import "SAModuleManager.h"
@@ -30,19 +30,68 @@
 #import "SANetwork.h"
 #import "SALog.h"
 #import "SAJSONUtil.h"
+#import "SensorsAnalyticsSDK+Private.h"
+#if __has_include("SAConfigOptions+Encrypt.h")
+#import "SAConfigOptions+Encrypt.h"
+#endif
 
-@interface SAEventFlush ()
+#import "SADatabase.h"
+
+
+static NSString *kUrlKey = @"url_key";
+static NSString *kHeaderKey = @"header_key";
+static NSString *kBodyKey = @"body_key";
+
+typedef id(^BodyCallBack)(NSArray *events);
+
+
+@interface SAMultipleChannels ()
+
+@property(nonatomic, strong) NSMutableDictionary *cacheChannels;
 
 @property (nonatomic, strong) dispatch_semaphore_t flushSemaphore;
 
-@property(nonatomic, copy) id(^callbackCustomBodyBlock)(NSArray *eventRecords);
-@property(nonatomic, copy) void(^callbackHttpRequestBlock)(NSArray *eventRecords);
+@property (nonatomic, readonly) BOOL isDebugMode;
 
-@property(nonatomic, strong) NSMutableDictionary *channelUrls;
+@property (nonatomic, strong, readonly) NSURL *serverURL;
+
+@property (nonatomic, readonly) BOOL flushBeforeEnterBackground;
+
+@property (nonatomic, readonly) BOOL enableEncrypt;
+
+@property (nonatomic, copy, readonly) NSString *cookie;
 
 @end
 
-@implementation SAEventFlush
+
+@implementation SAMultipleChannels
+
+- (void)addChannle:(NSString *)url header:(NSDictionary *)header body:(id (^)(NSArray *records))bodyCallback {
+    NSMutableDictionary *channel = [NSMutableDictionary dictionary];
+    
+    if (url.length) {
+        [channel setValue:url forKey:kUrlKey];
+    }
+    
+    if (header) {
+        [channel setValue:header forKey:kHeaderKey];
+    } else {
+        [channel setValue:@{} forKey:kHeaderKey];
+    }
+    
+    if (bodyCallback) {
+        [channel setValue:bodyCallback forKey:kBodyKey];
+    }
+    
+    if (self.cacheChannels) {
+        [self.cacheChannels setValue:channel forKey:url];
+    } else {
+        self.cacheChannels = [NSMutableDictionary dictionary];
+        [self.cacheChannels setValue:channel forKey:url];
+    }
+    
+}
+
 
 - (dispatch_semaphore_t)flushSemaphore {
     if (!_flushSemaphore) {
@@ -50,8 +99,6 @@
     }
     return _flushSemaphore;
 }
-
-#pragma mark - build
 
 // 1. 先完成这一系列 Json 字符串的拼接
 - (NSString *)buildFlushJSONStringWithEventRecords:(NSArray<SAEventRecord *> *)records {
@@ -86,40 +133,14 @@
     return [self buildFlushJSONStringWithEventRecords:encryptRecords];
 }
 
-// 2. 完成 HTTP 请求拼接
-- (NSData *)buildBodyWithJSONString:(NSString *)jsonString isEncrypted:(BOOL)isEncrypted {
-    if (self.callbackCustomBodyBlock) {
-        NSArray *array = [SAJSONUtil JSONObjectWithString:jsonString];
-        NSDictionary *jsonBody = self.callbackCustomBodyBlock(array);
-        return [[SAJSONUtil stringWithJSONObject:jsonBody] dataUsingEncoding:NSUTF8StringEncoding];
-    } else {
-        int gzip = 1; // gzip = 9 表示加密编码
-        if (isEncrypted) {
-            // 加密数据已{经做过 gzip 压缩和 base64 处理了，就不需要再处理。
-            gzip = 9;
-        } else {
-            // 使用gzip进行压缩
-            NSData *zippedData = [SAGzipUtility gzipData:[jsonString dataUsingEncoding:NSUTF8StringEncoding]];
-            // base64
-            jsonString = [zippedData base64EncodedStringWithOptions:NSDataBase64EncodingEndLineWithCarriageReturn];
-        }
-        int hashCode = [jsonString sensorsdata_hashCode];
-        jsonString = [jsonString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet alphanumericCharacterSet]];
-        NSString *bodyString = [NSString stringWithFormat:@"crc=%d&gzip=%d&data_list=%@", hashCode, gzip, jsonString];
-        return [bodyString dataUsingEncoding:NSUTF8StringEncoding];
-    }
-}
-
-- (NSURLRequest *)buildFlushRequestWithServerURL:(NSURL *)serverURL HTTPBody:(NSData *)HTTPBody {
+- (NSURLRequest *)buildFlushRequestWithServerURL:(NSURL *)serverURL header:(NSDictionary *)header HTTPBody:(NSData *)HTTPBody {
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:serverURL];
     request.timeoutInterval = 30;
     request.HTTPMethod = @"POST";
     request.HTTPBody = HTTPBody;
-    // 普通事件请求，使用标准 UserAgent
-    [request setValue:@"SensorsAnalytics iOS SDK" forHTTPHeaderField:@"User-Agent"];
-    if (SAModuleManager.sharedInstance.debugMode == SensorsAnalyticsDebugOnly) {
-        [request setValue:@"true" forHTTPHeaderField:@"Dry-Run"];
-    }
+    [header enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull obj, BOOL * _Nonnull stop) {
+        [request setValue:obj forHTTPHeaderField:key];
+    }];
 
     //Cookie
     [request setValue:self.cookie forHTTPHeaderField:@"Cookie"];
@@ -127,13 +148,11 @@
     return request;
 }
 
-- (void)requestWithRecords:(NSArray<SAEventRecord *> *)records completion:(void (^)(BOOL success))completion {
+- (void)requestWithUrl:(NSString *)url records:(NSArray<SAEventRecord *> *)records completion:(void (^)(BOOL success))completion {
     [SAHTTPSession.sharedInstance.delegateQueue addOperationWithBlock:^{
-        // 判断是否加密数据
         BOOL isEncrypted = self.enableEncrypt && records.firstObject.isEncrypted;
         // 拼接 json 数据
         NSString *jsonString = isEncrypted ? [self buildFlushEncryptJSONStringWithEventRecords:records] : [self buildFlushJSONStringWithEventRecords:records];
-
         // 网络请求回调处理
         SAURLSessionTaskCompletionHandler handler = ^(NSData * _Nullable data, NSHTTPURLResponse * _Nullable response, NSError * _Nullable error) {
             if (error || ![response isKindOfClass:[NSHTTPURLResponse class]]) {
@@ -170,24 +189,49 @@
         };
 
         // 转换成发送的 http 的 body
-        NSData *HTTPBody = [self buildBodyWithJSONString:jsonString isEncrypted:isEncrypted];
-        NSURLRequest *request = [self buildFlushRequestWithServerURL:self.serverURL HTTPBody:HTTPBody];
+        NSDictionary *parmas = [self.cacheChannels objectForKey:url];
+        NSDictionary *header = [parmas objectForKey:kHeaderKey];
+        BodyCallBack callBack = [parmas objectForKey:kBodyKey];
+        NSArray *array = [SAJSONUtil JSONObjectWithString:jsonString];
+        id jsonBody = callBack(array);
+        NSData *HTTPBody = [[SAJSONUtil stringWithJSONObject:jsonBody] dataUsingEncoding:NSUTF8StringEncoding];
+        NSURLRequest *request = [self buildFlushRequestWithServerURL:[NSURL URLWithString:url] header:header HTTPBody:HTTPBody];
         NSURLSessionDataTask *task = [SAHTTPSession.sharedInstance dataTaskWithRequest:request completionHandler:handler];
         [task resume];
-        
-        if (self.callbackHttpRequestBlock) {
-            NSArray *array = [SAJSONUtil JSONObjectWithString:jsonString];
-            self.callbackHttpRequestBlock(array);
-        }
-        
     }];
 }
 
-- (void)flushEventRecords:(NSArray<SAEventRecord *> *)records completion:(void (^)(BOOL success))completion {
+
+
+- (void)flushMultipleChannelsEventRecords:(NSArray<SAEventRecord *> *)records {
+    [self.cacheChannels.allKeys enumerateObjectsUsingBlock:^(NSString *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        NSMutableArray *arrM = [NSMutableArray arrayWithArray:records];
+        // 获取上一次失败的缓存数据
+        NSArray *oldArray = [self.dataBase selectChannelRecordsWithChannel:obj];
+        if (oldArray.count) {
+            // 合并数据
+            [arrM addObjectsFromArray:oldArray];
+        }
+        // 数据缓存
+        [self.dataBase insertOrUpdateRecords:arrM channelUrl:obj];
+        
+        [self flushEventWithUrl:obj records:arrM completion:^(BOOL success) {
+           
+            if (success) {
+                // 成功 删除缓存
+                [self.dataBase deleteRecordsWithChannel:obj];
+            } else {
+                // 失败
+            }
+        }];
+    }];
+}
+
+- (void)flushEventWithUrl:(NSString *)url records:(NSArray<SAEventRecord *> *)records completion:(void (^)(BOOL success))completion {
     __block BOOL flushSuccess = NO;
     // 当在程序终止或 debug 模式下，使用线程锁
     BOOL isWait = self.flushBeforeEnterBackground || self.isDebugMode;
-    [self requestWithRecords:records completion:^(BOOL success) {
+    [self requestWithUrl:url records:records completion:^(BOOL success) {
         if (isWait) {
             flushSuccess = success;
             dispatch_semaphore_signal(self.flushSemaphore);
@@ -201,31 +245,29 @@
     }
 }
 
-
-// 添加的渠道做分发请求
-
-- (void)callBackCustomBody:(id(^)(NSArray *eventRecords))callback {
-    self.callbackCustomBodyBlock = callback;
+- (BOOL)isDebugMode {
+    return SAModuleManager.sharedInstance.debugMode != SensorsAnalyticsDebugOff;
 }
 
-- (void)callBackHttpRequest:(void(^)(NSArray *eventRecords))callback {
-    self.callbackHttpRequestBlock = callback;
+- (NSURL *)serverURL {
+    return [SensorsAnalyticsSDK sdkInstance].network.serverURL;
 }
 
-- (void)addChannelUrl:(NSString *)url
-           httpHeader:(NSDictionary *(^)(void))headerCallBlock
-           bodyData:(NSArray *(^)(NSArray *eventRecords)) bodyDataCallBlock {
-    
-    NSDictionary *header = headerCallBlock();
-    NSArray *body = bodyDataCallBlock(@[]);
-    
-    if (self.channelUrls) {
-        [self.channelUrls setValue:@{@"url":url,@"header":header,@"body":body} forKey:url];
-    } else {
-        self.channelUrls = [NSMutableDictionary dictionary];
-        [self.channelUrls setValue:@{@"url":url,@"header":header,@"body":body} forKey:url];
-    }
-    
+- (BOOL)flushBeforeEnterBackground {
+    return SensorsAnalyticsSDK.sdkInstance.configOptions.flushBeforeEnterBackground;
+}
+
+- (BOOL)enableEncrypt {
+#if TARGET_OS_IOS && __has_include("SAConfigOptions+Encrypt.h")
+    return [SensorsAnalyticsSDK sdkInstance].configOptions.enableEncrypt;
+#else
+    return NO;
+#endif
+}
+
+
+- (NSString *)cookie {
+    return [[SensorsAnalyticsSDK sdkInstance].network cookieWithDecoded:NO];
 }
 
 
