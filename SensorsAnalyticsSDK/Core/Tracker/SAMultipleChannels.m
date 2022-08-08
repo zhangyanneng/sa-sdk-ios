@@ -51,6 +51,8 @@ typedef id(^BodyCallBack)(NSArray *events);
 
 @property (nonatomic, strong) dispatch_semaphore_t flushSemaphore;
 
+@property (nonatomic, strong) dispatch_semaphore_t mulFlushSemaphore;
+
 @property (nonatomic, readonly) BOOL isDebugMode;
 
 @property (nonatomic, strong, readonly) NSURL *serverURL;
@@ -99,6 +101,14 @@ typedef id(^BodyCallBack)(NSArray *events);
     }
     return _flushSemaphore;
 }
+
+- (dispatch_semaphore_t)mulFlushSemaphore {
+    if (!_mulFlushSemaphore) {
+        _mulFlushSemaphore = dispatch_semaphore_create(0);
+    }
+    return _mulFlushSemaphore;
+}
+
 
 // 1. 先完成这一系列 Json 字符串的拼接
 - (NSString *)buildFlushJSONStringWithEventRecords:(NSArray<SAEventRecord *> *)records {
@@ -216,14 +226,17 @@ typedef id(^BodyCallBack)(NSArray *events);
         [self.dataBase insertOrUpdateRecords:arrM channelUrl:obj];
         
         [self flushEventWithUrl:obj records:arrM completion:^(BOOL success) {
-           
             if (success) {
                 // 成功 删除缓存
                 [self.dataBase deleteRecordsWithChannel:obj];
             } else {
                 // 失败
             }
+            
+            dispatch_semaphore_signal(self.mulFlushSemaphore);
         }];
+        
+        dispatch_wait(self.mulFlushSemaphore, DISPATCH_TIME_FOREVER);
     }];
 }
 
