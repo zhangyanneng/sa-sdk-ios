@@ -51,8 +51,6 @@ typedef id(^BodyCallBack)(NSArray *events);
 
 @property (nonatomic, strong) dispatch_semaphore_t flushSemaphore;
 
-@property (nonatomic, strong) dispatch_semaphore_t mulFlushSemaphore;
-
 @property (nonatomic, readonly) BOOL isDebugMode;
 
 @property (nonatomic, strong, readonly) NSURL *serverURL;
@@ -100,13 +98,6 @@ typedef id(^BodyCallBack)(NSArray *events);
         _flushSemaphore = dispatch_semaphore_create(0);
     }
     return _flushSemaphore;
-}
-
-- (dispatch_semaphore_t)mulFlushSemaphore {
-    if (!_mulFlushSemaphore) {
-        _mulFlushSemaphore = dispatch_semaphore_create(0);
-    }
-    return _mulFlushSemaphore;
 }
 
 
@@ -222,20 +213,17 @@ typedef id(^BodyCallBack)(NSArray *events);
             // 合并数据
             [arrM addObjectsFromArray:oldArray];
         }
-        // 数据缓存
-        [self.dataBase insertOrUpdateRecords:arrM channelUrl:obj];
+        // 清空数据
+        [self.dataBase deleteRecordsWithChannel:obj];
         
         [self flushEventWithUrl:obj records:arrM completion:^(BOOL success) {
             if (success) {
-                // 成功 删除缓存
-                [self.dataBase deleteRecordsWithChannel:obj];
+                // 成功
             } else {
-                // 失败
+                // 失败，缓存数据
+                [self.dataBase insertOrUpdateRecords:arrM channelUrl:obj];
             }
-            
-            dispatch_semaphore_signal(self.mulFlushSemaphore);
         }];
-        dispatch_semaphore_wait(self.mulFlushSemaphore, DISPATCH_TIME_FOREVER);
     }];
 }
 
