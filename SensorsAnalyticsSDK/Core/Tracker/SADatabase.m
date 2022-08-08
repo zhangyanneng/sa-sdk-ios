@@ -550,7 +550,7 @@ static const NSUInteger kRemoveFirstRecordsDefaultCount = 100; // 超过最大�
 
 - (BOOL)updateChannelRecords:(NSArray<SAEventRecord *> *)records channelUrl:(NSString *)url {
     NSString *content = [self buildFlushJSONStringWithEventRecords:records];
-    NSString *sql = [NSString stringWithFormat:@"UPDATE channelCache SET content = %@ WHERE channelUrl = %@;", content, url];
+    NSString *sql = [NSString stringWithFormat:@"UPDATE channelCache SET content = '%@' WHERE channelUrl = '%@';", content, url];
     return [self execUpdateSQL:sql];
 }
 

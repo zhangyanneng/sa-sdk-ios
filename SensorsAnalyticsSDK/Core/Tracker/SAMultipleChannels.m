@@ -235,8 +235,7 @@ typedef id(^BodyCallBack)(NSArray *events);
             
             dispatch_semaphore_signal(self.mulFlushSemaphore);
         }];
-        
-        dispatch_wait(self.mulFlushSemaphore, DISPATCH_TIME_FOREVER);
+        dispatch_semaphore_wait(self.mulFlushSemaphore, DISPATCH_TIME_FOREVER);
     }];
 }
 
