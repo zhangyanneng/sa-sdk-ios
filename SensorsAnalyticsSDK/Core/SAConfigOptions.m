@@ -191,7 +191,7 @@ static const NSUInteger kSASessionMaxInterval = 5 * 60;
 }
 
 - (void)setFlushBulkSize:(NSInteger)flushBulkSize {
-    _flushBulkSize = flushBulkSize >= 50 ? flushBulkSize : 50;
+    _flushBulkSize = flushBulkSize >= 10 ? flushBulkSize : 10;
 }
 
 - (void)setMaxCacheSize:(NSInteger)maxCacheSize {
