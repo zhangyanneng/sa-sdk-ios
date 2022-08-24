@@ -33,29 +33,27 @@
 @implementation SAScrollViewDelegateProxy
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    SEL methodSelector = @selector(tableView:didSelectRowAtIndexPath:);
+    [SAScrollViewDelegateProxy invokeWithTarget:self selector:methodSelector, tableView, indexPath];
     // 防止某些场景下循环调用
     if (tableView.sensorsdata_indexPath == indexPath) {
         return;
     }
     tableView.sensorsdata_indexPath = indexPath;
-
-    SEL methodSelector = @selector(tableView:didSelectRowAtIndexPath:);
     [SAScrollViewDelegateProxy trackEventWithTarget:self scrollView:tableView atIndexPath:indexPath];
-    [SAScrollViewDelegateProxy invokeWithTarget:self selector:methodSelector, tableView, indexPath];
-
     tableView.sensorsdata_indexPath = nil;
 }
 
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
+    
+    SEL methodSelector = @selector(collectionView:didSelectItemAtIndexPath:);
+    [SAScrollViewDelegateProxy invokeWithTarget:self selector:methodSelector, collectionView, indexPath];
+    
     if (collectionView.sensorsdata_indexPath == indexPath) {
         return;
     }
     collectionView.sensorsdata_indexPath = indexPath;
-
-    SEL methodSelector = @selector(collectionView:didSelectItemAtIndexPath:);
     [SAScrollViewDelegateProxy trackEventWithTarget:self scrollView:collectionView atIndexPath:indexPath];
-    [SAScrollViewDelegateProxy invokeWithTarget:self selector:methodSelector, collectionView, indexPath];
-
     collectionView.sensorsdata_indexPath = nil;
 }
 
